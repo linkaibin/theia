@@ -97,6 +97,11 @@ export const corePreferenceSchema: PreferenceSchema = {
             default: 'code',
             description: 'Whether to interpret keypresses by the `code` of the physical key, or by the `keyCode` provided by the OS.'
         },
+        'breadcrumbs.enabled': {
+            'type': 'boolean',
+            'default': true,
+            'description': 'Enable/disable navigation breadcrumbs.'
+        }
     }
 };
 
@@ -112,6 +117,7 @@ export interface CoreConfiguration {
     'workbench.silentNotifications': boolean;
     'files.encoding': string
     'workbench.tree.renderIndentGuides': 'onHover' | 'none' | 'always';
+    'breadcrumbs.enabled': boolean;
 }
 
 export const CorePreferences = Symbol('CorePreferences');

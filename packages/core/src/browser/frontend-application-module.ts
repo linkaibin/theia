@@ -104,6 +104,7 @@ import {
 } from './quick-input';
 import { QuickAccessContribution } from './quick-input/quick-access';
 import { QuickCommandService } from './quick-input/quick-command-service';
+import { BreadcrumbsContribution, BreadcrumbsService } from './breadcrumbs';
 
 export { bindResourceProvider, bindMessageService, bindPreferenceService };
 
@@ -353,4 +354,6 @@ export const frontendApplicationModule = new ContainerModule((bind, unbind, isBo
     bind(CredentialsService).to(CredentialsServiceImpl);
 
     bind(ContributionFilterRegistry).to(ContributionFilterRegistryImpl).inSingletonScope();
+    bindContributionProvider(bind, BreadcrumbsContribution);
+    bind(BreadcrumbsService).toSelf().inSingletonScope();
 });
