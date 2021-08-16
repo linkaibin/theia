@@ -17,13 +17,14 @@
 import { BreadcrumbsContribution } from '@theia/core/lib/browser/breadcrumbs/breadcrumbs-contribution';
 import { Breadcrumb } from '@theia/core/lib/browser/breadcrumbs/breadcrumb';
 import { FilepathBreadcrumb } from './filepath-breadcrumb';
-import { injectable, inject } from 'inversify';
+import { injectable, inject } from '@theia/core/shared/inversify';
 import { LabelProvider, Widget } from '@theia/core/lib/browser';
-import { FileSystem, FileStat } from '../../common';
 import URI from '@theia/core/lib/common/uri';
 import { BreadcrumbsFileTreeWidget } from './filepath-breadcrumbs-container';
 import { DirNode } from '../file-tree';
 import { Disposable } from '@theia/core';
+import { FileService } from '../file-service';
+import { FileStat } from '../../common/files';
 
 export const FilepathBreadcrumbType = Symbol('FilepathBreadcrumb');
 
@@ -33,8 +34,8 @@ export class FilepathBreadcrumbsContribution implements BreadcrumbsContribution 
     @inject(LabelProvider)
     protected readonly labelProvider: LabelProvider;
 
-    @inject(FileSystem)
-    protected readonly fileSystem: FileSystem;
+    @inject(FileService)
+    protected readonly fileSystem: FileService;
 
     @inject(BreadcrumbsFileTreeWidget)
     protected readonly breadcrumbsFileTreeWidget: BreadcrumbsFileTreeWidget;
@@ -46,13 +47,15 @@ export class FilepathBreadcrumbsContribution implements BreadcrumbsContribution 
         if (uri.scheme !== 'file') {
             return [];
         }
-        return (await Promise.all(uri.allLocations.reverse()
-            .map(async u => new FilepathBreadcrumb(
-                u,
-                this.labelProvider.getName(u),
-                this.labelProvider.getLongName(u),
-                await this.labelProvider.getIcon(u) + ' file-icon'
-            )))).filter(b => this.filterBreadcrumbs(uri, b));
+        return uri.allLocations
+            .map((location, index) => new FilepathBreadcrumb(
+                location,
+                this.labelProvider.getName(location),
+                this.labelProvider.getLongName(location),
+                index === 0 ? this.labelProvider.getIcon(location) + ' file-icon' : ''
+            ))
+            .filter(b => this.filterBreadcrumbs(uri, b))
+            .reverse();
     }
 
     protected filterBreadcrumbs(_: URI, breadcrumb: FilepathBreadcrumb): boolean {
@@ -63,7 +66,7 @@ export class FilepathBreadcrumbsContribution implements BreadcrumbsContribution 
         if (!FilepathBreadcrumb.is(breadcrumb)) {
             return undefined;
         }
-        const folderFileStat = await this.fileSystem.getFileStat(breadcrumb.uri.parent.toString());
+        const folderFileStat = await this.fileSystem.resolve(breadcrumb.uri.parent);
         if (folderFileStat) {
             const rootNode = await this.createRootNode(folderFileStat);
             await this.breadcrumbsFileTreeWidget.model.navigateTo(rootNode);
@@ -80,13 +83,11 @@ export class FilepathBreadcrumbsContribution implements BreadcrumbsContribution 
     }
 
     protected async createRootNode(folderToOpen: FileStat): Promise<DirNode | undefined> {
-        const folderUri = new URI(folderToOpen.uri);
+        const folderUri = folderToOpen.resource;
         const rootUri = folderToOpen.isDirectory ? folderUri : folderUri.parent;
-        const name = this.labelProvider.getName(rootUri);
-        const rootStat = await this.fileSystem.getFileStat(rootUri.toString());
+        const rootStat = await this.fileSystem.resolve(rootUri);
         if (rootStat) {
-            const label = await this.labelProvider.getIcon(rootStat);
-            return DirNode.createRoot(rootStat, name, label);
+            return DirNode.createRoot(rootStat);
         }
     }
 }

@@ -36,6 +36,7 @@ import { TabBarToolbarRegistry, TabBarToolbarFactory, TabBarToolbar } from './ta
 import { ContextKeyService } from '../context-key-service';
 import { Emitter } from '../../common/event';
 import { waitForRevealed, waitForClosed } from '../widgets';
+import { BreadcrumbsRendererFactory } from '../breadcrumbs/breadcrumbs-renderer';
 
 /** The class name added to ApplicationShell instances. */
 const APPLICATION_SHELL_CLASS = 'theia-ApplicationShell';
@@ -78,19 +79,24 @@ export class DockPanelRenderer implements DockLayout.IRenderer {
     constructor(
         @inject(TabBarRendererFactory) protected readonly tabBarRendererFactory: () => TabBarRenderer,
         @inject(TabBarToolbarRegistry) protected readonly tabBarToolbarRegistry: TabBarToolbarRegistry,
-        @inject(TabBarToolbarFactory) protected readonly tabBarToolbarFactory: () => TabBarToolbar
+        @inject(TabBarToolbarFactory) protected readonly tabBarToolbarFactory: () => TabBarToolbar,
+        @inject(BreadcrumbsRendererFactory) protected readonly breadcrumbsRendererFactory: BreadcrumbsRendererFactory,
     ) { }
 
     createTabBar(): TabBar<Widget> {
         const renderer = this.tabBarRendererFactory();
-        const tabBar = new ToolbarAwareTabBar(this.tabBarToolbarRegistry, this.tabBarToolbarFactory, {
-            renderer,
-            // Scroll bar options
-            handlers: ['drag-thumb', 'keyboard', 'wheel', 'touch'],
-            useBothWheelAxes: true,
-            scrollXMarginOffset: 4,
-            suppressScrollY: true
-        });
+        const tabBar = new ToolbarAwareTabBar(
+            this.tabBarToolbarRegistry,
+            this.tabBarToolbarFactory,
+            this.breadcrumbsRendererFactory,
+            {
+                renderer,
+                // Scroll bar options
+                handlers: ['drag-thumb', 'keyboard', 'wheel', 'touch'],
+                useBothWheelAxes: true,
+                scrollXMarginOffset: 4,
+                suppressScrollY: true
+            });
         this.tabBarClasses.forEach(c => tabBar.addClass(c));
         renderer.tabBar = tabBar;
         tabBar.disposed.connect(() => renderer.dispose());

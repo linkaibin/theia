@@ -27,9 +27,11 @@ import {
 } from '@theia/core/lib/browser';
 import { OutlineViewTreeModel } from './outline-view-tree-model';
 import { Message } from '@theia/core/shared/@phosphor/messaging';
-import { Emitter } from '@theia/core';
+import { Emitter, Mutable, UriSelection } from '@theia/core';
 import { CompositeTreeNode } from '@theia/core/lib/browser';
 import * as React from '@theia/core/shared/react';
+import { Range } from '@theia/editor/lib/browser/editor';
+import URI from '@theia/core/lib/common/uri';
 
 /**
  * Representation of an outline symbol information node.
@@ -57,6 +59,10 @@ export namespace OutlineSymbolInformationNode {
      */
     export function is(node: TreeNode): node is OutlineSymbolInformationNode {
         return !!node && SelectableTreeNode.is(node) && 'iconClass' in node;
+    }
+
+    export function hasRange(node: unknown): node is { range: Range } {
+        return typeof node === 'object' && !!node && 'range' in node && Range.is((node as { range: Range }).range);
     }
 }
 
@@ -171,4 +177,19 @@ export class OutlineViewWidget extends TreeWidget {
         return super.renderTree(model);
     }
 
+    protected deflateForStorage(node: TreeNode): object {
+        const deflated = super.deflateForStorage(node) as { uri: string };
+        if (UriSelection.is(node)) {
+            deflated.uri = node.uri.toString();
+        }
+        return deflated;
+    }
+
+    protected inflateFromStorage(node: any, parent?: TreeNode): TreeNode { /* eslint-disable-line @typescript-eslint/no-explicit-any */
+        const inflated = super.inflateFromStorage(node, parent) as Mutable<TreeNode & UriSelection>;
+        if (node && 'uri' in node && typeof node.uri === 'string') {
+            inflated.uri = new URI(node.uri);
+        }
+        return inflated;
+    }
 }

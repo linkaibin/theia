@@ -16,7 +16,7 @@
 
 import URI from '../../common/uri';
 import { Breadcrumb } from './breadcrumb';
-import { Disposable } from '../../common';
+import { Disposable, MaybePromise } from '../../common';
 
 export const BreadcrumbsContribution = Symbol('BreadcrumbsContribution');
 export interface BreadcrumbsContribution {
@@ -27,14 +27,14 @@ export interface BreadcrumbsContribution {
     readonly type: symbol;
 
     /**
-     * The priority of this breadcrumbs contribution. Contributions with lower priority are rendered first.
+     * The priority of this breadcrumbs contribution. Contributions are rendered left to right in order of ascending priority.
      */
     readonly priority: number;
 
     /**
      * Computes breadcrumbs for a given URI.
      */
-    computeBreadcrumbs(uri: URI): Promise<Breadcrumb[]>;
+    computeBreadcrumbs(uri: URI): MaybePromise<Breadcrumb[]>;
 
     /**
      * Attaches the breadcrumb popup content for the given breadcrumb as child to the given parent.

@@ -14,11 +14,11 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
-import * as React from 'react';
-import * as ReactDOM from 'react-dom';
+import * as React from '@theia/core/shared/react';
+import * as ReactDOM from '@theia/core/shared/react-dom';
 import { BreadcrumbsContribution } from '@theia/core/lib/browser/breadcrumbs/breadcrumbs-contribution';
 import { Breadcrumb } from '@theia/core/lib/browser/breadcrumbs/breadcrumb';
-import { injectable, inject, postConstruct } from 'inversify';
+import { injectable, inject, postConstruct } from '@theia/core/shared/inversify';
 import { LabelProvider, BreadcrumbsService } from '@theia/core/lib/browser';
 import URI from '@theia/core/lib/common/uri';
 import { OutlineViewService } from './outline-view-service';
@@ -26,6 +26,7 @@ import { OutlineSymbolInformationNode } from './outline-view-widget';
 import { EditorManager } from '@theia/editor/lib/browser';
 import { Disposable } from '@theia/core/lib/common';
 import PerfectScrollbar from 'perfect-scrollbar';
+import { UriSelection } from '@theia/core/lib/common';
 
 export const OutlineBreadcrumbType = Symbol('OutlineBreadcrumb');
 
@@ -47,9 +48,9 @@ export class OutlineBreadcrumbsContribution implements BreadcrumbsContribution {
     readonly type = OutlineBreadcrumbType;
     readonly priority: number = 200;
 
-    private currentUri: URI | undefined = undefined;
-    private currentBreadcrumbs: OutlineBreadcrumb[] = [];
-    private roots: OutlineSymbolInformationNode[] = [];
+    protected currentUri: URI | undefined = undefined;
+    protected currentBreadcrumbs: OutlineBreadcrumb[] = [];
+    protected roots: OutlineSymbolInformationNode[] = [];
 
     @postConstruct()
     init(): void {
@@ -57,8 +58,8 @@ export class OutlineBreadcrumbsContribution implements BreadcrumbsContribution {
             if (roots.length > 0) {
                 this.roots = roots;
                 const first = roots[0];
-                if ('uri' in first) {
-                    this.updateOutlineItems(first['uri'] as URI, this.findSelectedNode(roots));
+                if (UriSelection.is(first)) {
+                    this.updateOutlineItems(first.uri, this.findSelectedNode(roots));
                 }
             } else {
                 this.currentBreadcrumbs = [];
@@ -66,8 +67,8 @@ export class OutlineBreadcrumbsContribution implements BreadcrumbsContribution {
             }
         });
         this.outlineViewService.onDidSelect(node => {
-            if ('uri' in node) {
-                this.updateOutlineItems(node['uri'] as URI, node);
+            if (UriSelection.is(node)) {
+                this.updateOutlineItems(node.uri, node);
             }
         });
     }
@@ -77,7 +78,7 @@ export class OutlineBreadcrumbsContribution implements BreadcrumbsContribution {
         const outlinePath = this.toOutlinePath(selectedNode);
         if (outlinePath && selectedNode) {
             this.currentBreadcrumbs = outlinePath.map((node, index) =>
-                new OutlineBreadcrumb(node, uri, index.toString(), node.name, 'symbol-icon symbol-icon-center ' + node.iconClass)
+                new OutlineBreadcrumb(node, uri, index.toString(), node.name!, 'symbol-icon symbol-icon-center ' + node.iconClass)
             );
             if (selectedNode.children && selectedNode.children.length > 0) {
                 this.currentBreadcrumbs.push(new OutlineBreadcrumb(selectedNode.children as OutlineSymbolInformationNode[],
@@ -105,8 +106,8 @@ export class OutlineBreadcrumbsContribution implements BreadcrumbsContribution {
         }
         const nodes = Array.isArray(breadcrumb.node) ? breadcrumb.node : this.siblings(breadcrumb.node);
         const items = nodes.map(node => ({
-            label: node.name,
-            title: node.name,
+            label: node.name!,
+            title: node.name!,
             iconClass: 'symbol-icon symbol-icon-center ' + node.iconClass,
             action: () => this.revealInEditor(node)
         }));
@@ -133,9 +134,9 @@ export class OutlineBreadcrumbsContribution implements BreadcrumbsContribution {
         parent.appendChild(noContent);
     }
 
-    private revealInEditor(node: OutlineSymbolInformationNode): void {
-        if ('range' in node && this.currentUri) {
-            this.editorManager.open(this.currentUri, { selection: node['range'] });
+    protected revealInEditor(node: OutlineSymbolInformationNode): void {
+        if (OutlineSymbolInformationNode.hasRange(node) && this.currentUri) {
+            this.editorManager.open(this.currentUri, { selection: node.range });
         }
     }
 
@@ -147,7 +148,7 @@ export class OutlineBreadcrumbsContribution implements BreadcrumbsContribution {
         </ul>;
     }
 
-    private siblings(node: OutlineSymbolInformationNode): OutlineSymbolInformationNode[] {
+    protected siblings(node: OutlineSymbolInformationNode): OutlineSymbolInformationNode[] {
         if (!node.parent) { return []; }
         return node.parent.children.filter(n => n !== node).map(n => n as OutlineSymbolInformationNode);
     }
@@ -155,7 +156,7 @@ export class OutlineBreadcrumbsContribution implements BreadcrumbsContribution {
     /**
      * Returns the path of the given outline node.
      */
-    private toOutlinePath(node: OutlineSymbolInformationNode | undefined, path: OutlineSymbolInformationNode[] = []): OutlineSymbolInformationNode[] | undefined {
+    protected toOutlinePath(node: OutlineSymbolInformationNode | undefined, path: OutlineSymbolInformationNode[] = []): OutlineSymbolInformationNode[] | undefined {
         if (!node) { return undefined; }
         if (node.id === 'outline-view-root') { return path; }
         if (node.parent) {
@@ -168,7 +169,7 @@ export class OutlineBreadcrumbsContribution implements BreadcrumbsContribution {
     /**
      * Find the node that is selected. Returns after the first match.
      */
-    private findSelectedNode(roots: OutlineSymbolInformationNode[]): OutlineSymbolInformationNode | undefined {
+    protected findSelectedNode(roots: OutlineSymbolInformationNode[]): OutlineSymbolInformationNode | undefined {
         const result = roots.find(node => node.selected);
         if (result) {
             return result;

@@ -5,12 +5,14 @@
 [1.17.0 Milestone](https://github.com/eclipse-theia/theia/milestone/23)
 
 - [core] modified handling of toolbar items for `ViewContainer`s to handle `onDidChange` correctly. [#9798](https://github.com/eclipse-theia/theia/pull/9798)
+- [core, outline-view, file-system, workspace] added breadcrumbs contribution points and renderers to `core` and contributions to other packages. [#9920](https://github.com/eclipse-theia/theia/pull/9920)
 
 <a name="breaking_changes_1.17.0">[Breaking Changes:](#breaking_changes_1.17.0)</a>
 
 - [core] registering toolbar items for commands that explicitly target a `ViewContainer` rather than a child widget may not behave as expected. Such registrations should be made in the `ViewContainer` by overriding the `updateToolbarItems` method and using the `registerToolbarItem` utility. See the modifications to the `scm` and `vsx-registry` packages in the PR for examples. [#9798](https://github.com/eclipse-theia/theia/pull/9798)
 - [vsx-registry] `VSXExtensionsContribution` no longer implements `TabBarToolbarContribution` and is not bound as such. Extensions of the class that expect such behavior should reimplement it with caution. See caveats in PR. [#9798](https://github.com/eclipse-theia/theia/pull/9798)
 - [core] `handleExpansionToggleDblClickEvent` in `TreeWidget` can no longer be overridden. Instead, `doHandleExpansionToggleDblClickEvent` can be overridden. [#9877](https://github.com/eclipse-theia/theia/pull/9877)
+- [core] added `BreadcrumbsRendererFactory` to constructor arguments of `DockPanelRenderer` and `ToolbarAwareTabBar`. [#9920](https://github.com/eclipse-theia/theia/pull/9920)
 
 ## v1.16.0 - 7/29/2021
 

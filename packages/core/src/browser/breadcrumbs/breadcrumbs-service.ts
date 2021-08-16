@@ -18,7 +18,7 @@ import { inject, injectable, named, postConstruct } from 'inversify';
 import { ContributionProvider, Prioritizeable, Emitter, Event } from '../../common';
 import URI from '../../common/uri';
 import { Breadcrumb } from './breadcrumb';
-import { BreadcrumbPopupContainer } from './breadcrumb-popup-container';
+import { BreadcrumbPopupContainer, BreadcrumbPopupContainerFactory } from './breadcrumb-popup-container';
 import { BreadcrumbsContribution } from './breadcrumbs-contribution';
 import { Breadcrumbs } from './breadcrumbs';
 
@@ -27,6 +27,8 @@ export class BreadcrumbsService {
 
     @inject(ContributionProvider) @named(BreadcrumbsContribution)
     protected readonly contributions: ContributionProvider<BreadcrumbsContribution>;
+
+    @inject(BreadcrumbPopupContainerFactory) protected readonly breadcrumbPopupContainerFactory: BreadcrumbPopupContainerFactory;
 
     protected popupsOverlayContainer: HTMLDivElement;
 
@@ -84,8 +86,13 @@ export class BreadcrumbsService {
     async openPopup(breadcrumb: Breadcrumb, position: { x: number, y: number }): Promise<BreadcrumbPopupContainer | undefined> {
         const contribution = this.contributions.getContributions().find(c => c.type === breadcrumb.type);
         if (contribution) {
-            const popup = new BreadcrumbPopupContainer(this.popupsOverlayContainer, breadcrumb.id, position);
-            popup.addDisposable(await contribution.attachPopupContent(breadcrumb, popup.container));
+            const popup = this.breadcrumbPopupContainerFactory(this.popupsOverlayContainer, breadcrumb.id, position);
+            const popupContent = await contribution.attachPopupContent(breadcrumb, popup.container);
+            if (popupContent && popup.isOpen) {
+                popup.onDidDispose(() => popupContent.dispose());
+            } else {
+                popupContent?.dispose();
+            }
             return popup;
         }
     }
