@@ -97,13 +97,17 @@ export class OutlineViewWidget extends TreeWidget {
         // Gather the list of available nodes.
         const nodes = this.reconcileTreeState(roots);
         // Update the model root node, appending the outline symbol information nodes as children.
-        this.model.root = {
+        this.model.root = this.getRoot(nodes);
+    }
+
+    protected getRoot(children: TreeNode[]): CompositeTreeNode {
+        return {
             id: 'outline-view-root',
             name: 'Outline Root',
             visible: false,
-            children: nodes,
+            children,
             parent: undefined
-        } as CompositeTreeNode;
+        };
     }
 
     /**

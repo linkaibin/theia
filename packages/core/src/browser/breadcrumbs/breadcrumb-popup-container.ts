@@ -42,8 +42,8 @@ export class BreadcrumbPopupContainer implements Disposable {
     @inject(BreadcrumbID) public readonly breadcrumbId: BreadcrumbID;
     @inject(Coordinate) protected readonly position: Coordinate;
 
-    protected toDispose: DisposableCollection = new DisposableCollection();
     protected onDidDisposeEmitter = new Emitter<void>();
+    protected toDispose: DisposableCollection = new DisposableCollection(this.onDidDisposeEmitter);
     get onDidDispose(): Event<void> {
         return this.onDidDisposeEmitter.event;
     }
@@ -92,7 +92,7 @@ export class BreadcrumbPopupContainer implements Disposable {
             if (this._container.contains(event.relatedTarget)) {
                 // A child element gets focus. Set the focus to the container again.
                 // Otherwise the popup would not be closed when elements outside the popup get the focus.
-                // A popup content should not relay on getting a focus.
+                // A popup content should not rely on getting a focus.
                 this._container.focus();
                 return;
             }
@@ -107,12 +107,12 @@ export class BreadcrumbPopupContainer implements Disposable {
     };
 
     dispose(): void {
-        this.onDidDisposeEmitter.fire();
-        this.toDispose.dispose();
-        if (this.parent.contains(this._container)) {
-            this.parent.removeChild(this._container);
+        if (!this.toDispose.disposed) {
+            this.onDidDisposeEmitter.fire();
+            this.toDispose.dispose();
+            this._container.remove();
+            this._isOpen = false;
+            document.removeEventListener('keyup', this.escFunction);
         }
-        this._isOpen = false;
-        document.removeEventListener('keyup', this.escFunction);
     }
 }

@@ -20,7 +20,7 @@ import { VirtualElement, h, VirtualDOM, ElementInlineStyle } from '@phosphor/vir
 import { Disposable, DisposableCollection, MenuPath, notEmpty } from '../../common';
 import { ContextMenuRenderer } from '../context-menu-renderer';
 import { Signal, Slot } from '@phosphor/signaling';
-import { Message } from '@phosphor/messaging';
+import { Message, MessageLoop } from '@phosphor/messaging';
 import { ArrayExt } from '@phosphor/algorithm';
 import { ElementExt } from '@phosphor/domutils';
 import { TabBarToolbarRegistry, TabBarToolbar } from './tab-bar-toolbar';
@@ -602,7 +602,9 @@ export class ToolbarAwareTabBar extends ScrollableTabBar {
         this.toDispose.push(this.breadcrumbsRenderer);
         this.toDispose.push(this.breadcrumbsRenderer.onDidChangeActiveState(active => {
             this.node.classList.toggle('theia-tabBar-multirow', active);
-            this.update();
+            if (this.parent) {
+                MessageLoop.sendMessage(this.parent, new Message('fit-request'));
+            }
         }));
         this.node.classList.toggle('theia-tabBar-multirow', this.breadcrumbsRenderer.active);
         const handler = () => this.updateBreadcrumbs();

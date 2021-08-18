@@ -14,6 +14,10 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
+:root {
+    --theia-breadcrumbs-height: 22px;
+}
+
 .theia-breadcrumbs {
     position: relative;
     user-select: none;
@@ -44,7 +48,7 @@
     height: 100%;
     color: var(--theia-breadcrumb-foreground);
     outline: none;
-    padding: .25rem .3rem .25rem .25rem;
+    padding: calc(var(--theia-ui-padding) / 2) .3rem calc(var(--theia-ui-padding) / 2) .25rem;
 }
 
 .theia-breadcrumbs .theia-breadcrumb-item:hover {

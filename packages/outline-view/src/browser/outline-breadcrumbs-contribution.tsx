@@ -15,24 +15,41 @@
  ********************************************************************************/
 
 import * as React from '@theia/core/shared/react';
-import * as ReactDOM from '@theia/core/shared/react-dom';
 import { BreadcrumbsContribution } from '@theia/core/lib/browser/breadcrumbs/breadcrumbs-contribution';
 import { Breadcrumb } from '@theia/core/lib/browser/breadcrumbs/breadcrumb';
 import { injectable, inject, postConstruct } from '@theia/core/shared/inversify';
-import { LabelProvider, BreadcrumbsService } from '@theia/core/lib/browser';
+import { LabelProvider, BreadcrumbsService, Widget, TreeNode, OpenerService, open, SelectableTreeNode } from '@theia/core/lib/browser';
 import URI from '@theia/core/lib/common/uri';
 import { OutlineViewService } from './outline-view-service';
-import { OutlineSymbolInformationNode } from './outline-view-widget';
-import { EditorManager } from '@theia/editor/lib/browser';
-import { Disposable } from '@theia/core/lib/common';
-import PerfectScrollbar from 'perfect-scrollbar';
+import { OutlineSymbolInformationNode, OutlineViewWidget } from './outline-view-widget';
+import { Disposable, DisposableCollection } from '@theia/core/lib/common';
 import { UriSelection } from '@theia/core/lib/common';
 
 export const OutlineBreadcrumbType = Symbol('OutlineBreadcrumb');
+export const BreadcrumbPopupOutlineViewFactory = Symbol('BreadcrumbPopupOutlineViewFactory');
+export interface BreadcrumbPopupOutlineViewFactory {
+    (): BreadcrumbPopupOutlineView;
+}
+export class BreadcrumbPopupOutlineView extends OutlineViewWidget {
+    @inject(OpenerService) protected readonly openerService: OpenerService;
+
+    protected handleClickEvent(node: TreeNode | undefined, event: React.MouseEvent<HTMLElement>): void {
+        if (UriSelection.is(node) && OutlineSymbolInformationNode.hasRange(node)) {
+            open(this.openerService, node.uri, { selection: node.range });
+        } else {
+            super.handleClickEvent(node, event);
+        }
+    }
+
+    cloneState(roots: OutlineSymbolInformationNode[]): void {
+        const nodes = this.reconcileTreeState(roots);
+        const root = this.getRoot(nodes);
+        this.model.root = this.inflateFromStorage(this.deflateForStorage(root));
+    }
+}
 
 @injectable()
 export class OutlineBreadcrumbsContribution implements BreadcrumbsContribution {
-
     @inject(LabelProvider)
     protected readonly labelProvider: LabelProvider;
 
@@ -42,8 +59,10 @@ export class OutlineBreadcrumbsContribution implements BreadcrumbsContribution {
     @inject(BreadcrumbsService)
     protected readonly breadcrumbsService: BreadcrumbsService;
 
-    @inject(EditorManager)
-    protected readonly editorManager: EditorManager;
+    @inject(BreadcrumbPopupOutlineViewFactory)
+    protected readonly outlineFactory: BreadcrumbPopupOutlineViewFactory;
+
+    protected outlineView: BreadcrumbPopupOutlineView;
 
     readonly type = OutlineBreadcrumbType;
     readonly priority: number = 200;
@@ -54,6 +73,9 @@ export class OutlineBreadcrumbsContribution implements BreadcrumbsContribution {
 
     @postConstruct()
     init(): void {
+        this.outlineView = this.outlineFactory();
+        this.outlineView.node.style.height = 'auto';
+        this.outlineView.node.style.maxHeight = '200px';
         this.outlineViewService.onDidChangeOutline(roots => {
             if (roots.length > 0) {
                 this.roots = roots;
@@ -78,7 +100,7 @@ export class OutlineBreadcrumbsContribution implements BreadcrumbsContribution {
         const outlinePath = this.toOutlinePath(selectedNode);
         if (outlinePath && selectedNode) {
             this.currentBreadcrumbs = outlinePath.map((node, index) =>
-                new OutlineBreadcrumb(node, uri, index.toString(), node.name!, 'symbol-icon symbol-icon-center ' + node.iconClass)
+                new OutlineBreadcrumb(node, uri, index.toString(), this.labelProvider.getName(node), 'symbol-icon symbol-icon-center ' + node.iconClass)
             );
             if (selectedNode.children && selectedNode.children.length > 0) {
                 this.currentBreadcrumbs.push(new OutlineBreadcrumb(selectedNode.children as OutlineSymbolInformationNode[],
@@ -104,53 +126,25 @@ export class OutlineBreadcrumbsContribution implements BreadcrumbsContribution {
         if (!OutlineBreadcrumb.is(breadcrumb)) {
             return undefined;
         }
-        const nodes = Array.isArray(breadcrumb.node) ? breadcrumb.node : this.siblings(breadcrumb.node);
-        const items = nodes.map(node => ({
-            label: node.name!,
-            title: node.name!,
-            iconClass: 'symbol-icon symbol-icon-center ' + node.iconClass,
-            action: () => this.revealInEditor(node)
-        }));
-        if (items.length > 0) {
-            ReactDOM.render(<React.Fragment>{this.renderItems(items)}</React.Fragment>, parent);
-            const scrollbar = new PerfectScrollbar(parent, {
-                handlers: ['drag-thumb', 'keyboard', 'wheel', 'touch'],
-                useBothWheelAxes: true,
-                scrollYMarginOffset: 8,
-                suppressScrollX: true
-            });
-            return {
-                dispose: () => {
-                    scrollbar.destroy();
-                    ReactDOM.unmountComponentAtNode(parent);
-
-                }
-            };
+        const node = Array.isArray(breadcrumb.node) ? breadcrumb.node[0] : breadcrumb.node;
+        if (!node.parent) {
+            return undefined;
         }
-        const noContent = document.createElement('div');
-        noContent.style.margin = '.5rem';
-        noContent.style.fontStyle = 'italic';
-        noContent.innerText = '(no content)';
-        parent.appendChild(noContent);
-    }
+        const siblings = node.parent.children.filter((child): child is OutlineSymbolInformationNode => OutlineSymbolInformationNode.is(child));
 
-    protected revealInEditor(node: OutlineSymbolInformationNode): void {
-        if (OutlineSymbolInformationNode.hasRange(node) && this.currentUri) {
-            this.editorManager.open(this.currentUri, { selection: node.range });
-        }
-    }
-
-    protected renderItems(items: { label: string, title: string, iconClass: string, action: () => void }[]): React.ReactNode {
-        return <ul>
-            {items.map((item, index) => <li key={index} title={item.title} onClick={_ => item.action()}>
-                <span className={item.iconClass}></span> <span>{item.label}</span>
-            </li>)}
-        </ul>;
-    }
-
-    protected siblings(node: OutlineSymbolInformationNode): OutlineSymbolInformationNode[] {
-        if (!node.parent) { return []; }
-        return node.parent.children.filter(n => n !== node).map(n => n as OutlineSymbolInformationNode);
+        const toDisposeOnHide = new DisposableCollection();
+        this.outlineView.cloneState(siblings);
+        this.outlineView.model.selectNode(node);
+        this.outlineView.model.collapseAll();
+        Widget.attach(this.outlineView, parent);
+        toDisposeOnHide.pushAll([
+            this.outlineView.model.onExpansionChanged(expandedNode => SelectableTreeNode.is(expandedNode) && this.outlineView.model.selectNode(expandedNode)),
+            Disposable.create(() => {
+                this.outlineView.model.root = undefined;
+                Widget.detach(this.outlineView);
+            }),
+        ]);
+        return toDisposeOnHide;
     }
 
     /**

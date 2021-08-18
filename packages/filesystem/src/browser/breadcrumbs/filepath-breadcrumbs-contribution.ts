@@ -18,7 +18,7 @@ import { BreadcrumbsContribution } from '@theia/core/lib/browser/breadcrumbs/bre
 import { Breadcrumb } from '@theia/core/lib/browser/breadcrumbs/breadcrumb';
 import { FilepathBreadcrumb } from './filepath-breadcrumb';
 import { injectable, inject } from '@theia/core/shared/inversify';
-import { LabelProvider, Widget } from '@theia/core/lib/browser';
+import { CompositeTreeNode, LabelProvider, SelectableTreeNode, Widget } from '@theia/core/lib/browser';
 import URI from '@theia/core/lib/common/uri';
 import { BreadcrumbsFileTreeWidget } from './filepath-breadcrumbs-container';
 import { DirNode } from '../file-tree';
@@ -69,16 +69,29 @@ export class FilepathBreadcrumbsContribution implements BreadcrumbsContribution 
         const folderFileStat = await this.fileSystem.resolve(breadcrumb.uri.parent);
         if (folderFileStat) {
             const rootNode = await this.createRootNode(folderFileStat);
-            await this.breadcrumbsFileTreeWidget.model.navigateTo(rootNode);
-            Widget.attach(this.breadcrumbsFileTreeWidget, parent);
-            return {
-                dispose: () => {
-                    // Clear model otherwise the next time a popup is opened the old model is rendered first
-                    // and is shown for a short time period.
-                    this.breadcrumbsFileTreeWidget.model.root = undefined;
-                    Widget.detach(this.breadcrumbsFileTreeWidget);
-                }
-            };
+            if (rootNode) {
+                const { model } = this.breadcrumbsFileTreeWidget;
+                await model.navigateTo({ ...rootNode, visible: false });
+                Widget.attach(this.breadcrumbsFileTreeWidget, parent);
+                const toDisposeOnTreePopulated = model.onChanged(() => {
+                    if (CompositeTreeNode.is(model.root) && model.root.children.length > 0) {
+                        toDisposeOnTreePopulated.dispose();
+                        const targetNode = model.getNode(breadcrumb.uri.path.toString());
+                        if (targetNode && SelectableTreeNode.is(targetNode)) {
+                            model.selectNode(targetNode);
+                        }
+                    }
+                });
+                return {
+                    dispose: () => {
+                        // Clear model otherwise the next time a popup is opened the old model is rendered first
+                        // and is shown for a short time period.
+                        toDisposeOnTreePopulated.dispose();
+                        this.breadcrumbsFileTreeWidget.model.root = undefined;
+                        Widget.detach(this.breadcrumbsFileTreeWidget);
+                    }
+                };
+            }
         }
     }
 
