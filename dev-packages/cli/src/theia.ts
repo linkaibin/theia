@@ -50,17 +50,17 @@ function rebuildCommand(command: string, target: ApplicationProps.Target): yargs
         command,
         describe: `Rebuild/revert native node modules for "${target}"`,
         builder: {
+            'cacheRoot': {
+                type: 'string',
+                describe: 'Root folder where to store the .browser_modules cache'
+            },
             'modules': {
                 array: true,
                 describe: 'List of modules to rebuild/revert'
             },
-            'cacheRoot': {
-                type: 'string',
-                describe: 'Root folder where to store the .browser_modules cache'
-            }
         },
-        handler: args => {
-            rebuild(target, args.modules);
+        handler: ({ cacheRoot, modules }) => {
+            rebuild(target, { cacheRoot, modules });
         }
     };
 }
