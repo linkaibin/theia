@@ -64,7 +64,7 @@ export class WorkspaceDuplicateHandler implements UriCommandHandler<URI[]> {
             try {
                 const parent = await this.fileService.resolve(uri.parent);
                 const parentUri = parent.resource;
-                const name = uri.path.name + '_copy';
+                const name = uri.path.name + '_copy_custom_duplicate_handler';
                 const ext = uri.path.ext;
                 const target = FileSystemUtils.generateUniqueResourceURI(parentUri, parent, name, ext);
                 await this.fileService.copy(uri, target);

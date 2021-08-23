@@ -155,7 +155,7 @@ export class FileTreeModel extends TreeModelImpl implements LocationService {
         try {
             if (source.path.toString() === target.uri.path.toString()) {
                 const parent = await this.fileService.resolve(source.parent);
-                const name = source.path.name + '_copy';
+                const name = source.path.name + '_copy_custom_tree_model';
                 targetUri = FileSystemUtils.generateUniqueResourceURI(source.parent, parent, name, source.path.ext);
             }
             await this.fileService.copy(source, targetUri);
